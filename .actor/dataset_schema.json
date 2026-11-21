@@ -1,0 +1,28 @@
+{
+    "actorSpecification": 1,
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "transformation": {
+                "fields": ["updated", "title", "reportTitle", "hypocenter", "magnitude", "maxIntensity", "depthKm", "latitude", "longitude", "headline", "summary", "xmlUrl"]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "updated": { "label": "Published", "format": "date" },
+                    "title": { "label": "Type" },
+                    "reportTitle": { "label": "Report" },
+                    "hypocenter": { "label": "Hypocenter" },
+                    "magnitude": { "label": "Magnitude", "format": "number" },
+                    "maxIntensity": { "label": "Max intensity" },
+                    "depthKm": { "label": "Depth (km)", "format": "number" },
+                    "latitude": { "label": "Lat", "format": "number" },
+                    "longitude": { "label": "Lon", "format": "number" },
+                    "headline": { "label": "Headline" },
+                    "summary": { "label": "Summary" },
+                    "xmlUrl": { "label": "Source XML", "format": "link" }
+                }
+            }
+        }
+    }
+}

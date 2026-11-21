@@ -1,0 +1,13 @@
+{
+    "actorSpecification": 1,
+    "name": "jma-disaster-feed",
+    "title": "Japan Earthquake, Tsunami & Weather Warning Feed (JMA)",
+    "description": "Official Japan Meteorological Agency (JMA) disaster information as structured JSON: earthquakes (hypocenter, magnitude, seismic intensity), tsunami warnings, volcano and weather warnings. Monitoring mode returns only new reports.",
+    "version": "1.0",
+    "buildTag": "latest",
+    "input": "./input_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json"
+    },
+    "dockerfile": "../Dockerfile"
+}

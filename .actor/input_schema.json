@@ -1,0 +1,133 @@
+{
+    "title": "JMA disaster information feed",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "feeds": {
+            "title": "Feeds",
+            "type": "array",
+            "description": "Which JMA feeds to read. `eqvol` = earthquakes, tsunami and volcanoes; `extra` = weather warnings and advisories issued as needed; `regular` = scheduled forecasts; `other` = miscellaneous notices.",
+            "editor": "select",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "eqvol",
+                    "extra",
+                    "regular",
+                    "other"
+                ],
+                "enumTitles": [
+                    "Earthquake / tsunami / volcano (eqvol)",
+                    "Warnings & advisories (extra)",
+                    "Scheduled forecasts (regular)",
+                    "Other notices (other)"
+                ]
+            },
+            "prefill": [
+                "eqvol"
+            ],
+            "default": [
+                "eqvol"
+            ]
+        },
+        "longFeed": {
+            "title": "Use long feeds (last few days)",
+            "type": "boolean",
+            "description": "The short feeds only contain the most recent reports (roughly the last 10+ minutes). Long feeds cover several days. Use long feeds for one-off research or to catch up after an outage; short feeds are enough for scheduled monitoring every ~5 minutes.",
+            "default": false
+        },
+        "titles": {
+            "title": "Report titles to include",
+            "type": "array",
+            "description": "Keep only reports whose feed title contains one of these strings. Examples: `震源・震度に関する情報` (earthquake hypocenter and intensity), `震度速報` (intensity flash report), `津波` (tsunami), `気象警報` (weather warnings), `噴火` (eruption). Leave empty to keep all.",
+            "editor": "stringList",
+            "prefill": [
+                "震源・震度に関する情報"
+            ]
+        },
+        "keywords": {
+            "title": "Keywords (any)",
+            "type": "array",
+            "description": "Keep only reports whose title or summary contains at least one keyword, e.g. a prefecture name like `東京都` or `石川県`.",
+            "editor": "stringList"
+        },
+        "hoursBack": {
+            "title": "Only reports from the last N hours",
+            "type": "integer",
+            "description": "0 = no time limit (everything in the feed).",
+            "minimum": 0,
+            "default": 0
+        },
+        "fetchDetails": {
+            "title": "Fetch and parse each report",
+            "type": "boolean",
+            "description": "Download each report XML and extract structured fields (hypocenter, coordinates, depth, magnitude, max seismic intensity, intensity by prefecture, tsunami forecast, headline areas). Turn off to get only the feed summary (fewer requests).",
+            "default": true
+        },
+        "minIntensity": {
+            "title": "Minimum seismic intensity",
+            "type": "string",
+            "description": "Keep only reports with at least this JMA seismic intensity (震度). Reports without intensity data are dropped when this is set. Requires 'Fetch and parse each report'.",
+            "editor": "select",
+            "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5-",
+                "5+",
+                "6-",
+                "6+",
+                "7"
+            ],
+            "enumTitles": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5 lower (5弱)",
+                "5 upper (5強)",
+                "6 lower (6弱)",
+                "6 upper (6強)",
+                "7"
+            ]
+        },
+        "onlyNew": {
+            "title": "Monitoring mode: only new reports",
+            "type": "boolean",
+            "description": "Remember which reports were already returned (in a named key-value store) and only output new ones. Use with an Apify schedule every ~5 minutes (the short feeds keep roughly the last 10+ minutes of reports). Reports that failed to download are retried on the next run. After an outage, run once with long feeds to catch up.",
+            "default": false
+        },
+        "stateKey": {
+            "title": "Monitoring state key",
+            "type": "string",
+            "description": "Separate name for the \"already seen\" list, so several schedules with different filters do not interfere. Letters, digits, - and _ only. Do not run two schedules with the same key at the same time.",
+            "default": "default",
+            "editor": "textfield",
+            "pattern": "^[a-zA-Z0-9_-]{1,50}$"
+        },
+        "maxItems": {
+            "title": "Max results",
+            "type": "integer",
+            "description": "Maximum number of records to output.",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 200
+        },
+        "maxDetailRequests": {
+            "title": "Max report download requests per run",
+            "type": "integer",
+            "description": "Upper limit on HTTP requests for report XMLs in one run, retries included. In monitoring mode, entries left unprocessed are kept as pending and handled by the next runs.",
+            "minimum": 1,
+            "maximum": 5000,
+            "default": 300
+        },
+        "requestIntervalMs": {
+            "title": "Delay between requests (ms)",
+            "type": "integer",
+            "description": "Pause between requests to the JMA server. Minimum 500 ms.",
+            "minimum": 500,
+            "default": 1000
+        }
+    }
+}

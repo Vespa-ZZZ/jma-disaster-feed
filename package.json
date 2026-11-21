@@ -1,0 +1,17 @@
+{
+  "name": "jma-disaster-feed",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Japan Meteorological Agency (JMA) disaster information XML feeds: earthquakes, tsunami, volcano, weather warnings.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/jma.test.js"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "apify": "^3.2.6",
+    "fast-xml-parser": "^4.5.0"
+  }
+}
