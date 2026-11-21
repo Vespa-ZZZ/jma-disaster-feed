@@ -117,6 +117,7 @@ export async function run({ actor, fetch, log, sleep = (ms) => new Promise((reso
         const budget = { used: 0, limit: maxDetailRequests };
         let pushed = 0;
         let failed = 0;
+        let chargeLimitReached = false;
         for (const entry of candidates) {
             if (pushed >= maxItems) break;
             let record = { ...entry };
@@ -145,10 +146,14 @@ export async function run({ actor, fetch, log, sleep = (ms) => new Promise((reso
             delete record.failCount;
             delete record.permanentFails;
             if (meetsMinIntensity(record, minIntensity)) {
-                await actor.pushData({ ...record, source: SOURCE });
+                const result = await actor.pushData({ ...record, source: SOURCE });
+                chargeLimitReached = result?.eventChargeLimitReached === true;
+                if (chargeLimitReached) log.warning('Pay-per-event charge limit reached. Stopping dataset output.');
+                if (chargeLimitReached && result.chargedCount === 0) break;
                 pushed++;
             }
             handled.add(entry.entryId);
+            if (chargeLimitReached) break;
         }
 
         const unhandled = candidates.filter((e) => !handled.has(e.entryId));
@@ -176,9 +181,9 @@ export async function run({ actor, fetch, log, sleep = (ms) => new Promise((reso
         };
         await actor.setValue('RUN_SUMMARY', summary);
         if (pushed === 0 && onlyNew) log.info(`No new reports output (${savedPending} pending for the next run).`);
-        else if (pushed === 0) log.warning('No entries matched. Try a different feed, wider filters or longFeed = true.');
+        else if (pushed === 0 && !chargeLimitReached) log.warning('No entries matched. Try a different feed, wider filters or longFeed = true.');
         log.info(`Done. Pushed ${pushed} records${failed ? `, ${failed} report(s) could not be fetched or parsed` : ''}${unhandled.length ? `, ${unhandled.length} not processed` : ''}.`);
-        if (failed > 0 && pushed === 0 && handled.size === 0) {
+        if (!chargeLimitReached && failed > 0 && pushed === 0 && handled.size === 0) {
             throw new Error(`All ${failed} report download(s) failed; JMA may be temporarily unavailable.`);
         }
         await actor.exit();

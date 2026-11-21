@@ -29,13 +29,14 @@ function makeFeed(ids) {
     return `<feed xmlns="http://www.w3.org/2005/Atom"><title>Test feed</title>${entries.join('')}</feed>`;
 }
 
-async function runActor({ entries = [], reports = {}, input = {}, state = new Map(), feedError } = {}) {
+async function runActor({ entries = [], reports = {}, input = {}, state = new Map(), feedError, chargeResults = [] } = {}) {
     const requests = [];
     const records = [];
     const values = new Map();
     const lifecycle = [];
     const warnings = [];
     const errors = [];
+    let pushes = 0;
     const reportStatuses = new Map(Object.entries(reports).map(([id, status]) => [reportUrl(id), status]));
     const fetch = async (url) => {
         requests.push(url);
@@ -57,7 +58,11 @@ async function runActor({ entries = [], reports = {}, input = {}, state = new Ma
                 async setValue(key, value) { state.set(key, structuredClone(value)); },
             };
         },
-        async pushData(record) { records.push(structuredClone(record)); },
+        async pushData(record) {
+            const result = chargeResults[pushes++];
+            if (!result?.eventChargeLimitReached || result.chargedCount > 0) records.push(structuredClone(record));
+            return result;
+        },
         async setValue(key, value) { values.set(key, structuredClone(value)); },
         async exit() { lifecycle.push('exit'); },
         async fail(message) { lifecycle.push('fail', message); },
@@ -69,7 +74,7 @@ async function runActor({ entries = [], reports = {}, input = {}, state = new Ma
     };
 
     await run({ actor, fetch, log, sleep: async () => {} });
-    return { requests, records, summary: values.get('RUN_SUMMARY'), lifecycle, warnings, errors };
+    return { requests, records, summary: values.get('RUN_SUMMARY'), lifecycle, warnings, errors, pushes };
 }
 
 test('monitoring an unchanged feed produces no new reports on the second run', async () => {
@@ -89,6 +94,24 @@ test('monitoring an unchanged feed produces no new reports on the second run', a
     assert.deepEqual(second.summary, {
         processed: 0, pushed: 0, failedReports: 0, detailHttpRequests: 0, unhandled: 0,
     });
+});
+
+test('a skipped push leaves the current and remaining reports pending after they leave the feed', async () => {
+    const state = new Map();
+    const first = await runActor({
+        state, entries: ['saved', 'blocked', 'waiting'], reports: { saved: 200, blocked: 200 },
+        chargeResults: [{ eventChargeLimitReached: false, chargedCount: 0 }, { eventChargeLimitReached: true, chargedCount: 0 }],
+    });
+    assert.deepEqual(first.lifecycle, ['init', 'exit']);
+    assert.equal(first.pushes, 2);
+    assert.equal(first.summary.pushed, 1);
+    assert.match(first.warnings[0], /charge limit reached/i);
+    assert.deepEqual(state.get(SEEN_KEY), ['saved']);
+    assert.deepEqual(state.get(PENDING_KEY).map((e) => e.entryId), ['blocked', 'waiting']);
+
+    const next = await runActor({ state, reports: { blocked: 200, waiting: 200 } });
+    assert.deepEqual(next.records.map((e) => e.entryId), ['blocked', 'waiting']);
+    assert.deepEqual(state.get(PENDING_KEY), []);
 });
 
 test('a report returning 503 stays unread and can be processed after it leaves the feed', async () => {
