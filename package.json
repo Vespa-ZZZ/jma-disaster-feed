@@ -7,7 +7,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "node src/main.js",
-    "test": "node --test test/jma.test.js"
+    "test": "node --test"
   },
   "license": "Apache-2.0",
   "dependencies": {

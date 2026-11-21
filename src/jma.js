@@ -48,7 +48,7 @@ function parseStrict(xml, what) {
     const src = String(xml ?? '');
     const valid = XMLValidator.validate(src);
     if (valid !== true) throw new Error(`Malformed ${what} XML: ${valid.err?.msg ?? 'invalid'} (line ${valid.err?.line ?? '?'})`);
-    if (XML_ENTITY.test(src.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, ''))) {
+    if (XML_ENTITY.test(src.replace(/<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->/g, ''))) {
         throw new Error(`Malformed ${what} XML: undefined entity reference`);
     }
     const doc = parser.parse(src);

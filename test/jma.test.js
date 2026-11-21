@@ -136,6 +136,15 @@ test('an empty but valid feed yields no entries', () => {
     assert.deepEqual(parseFeed('<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>t</title></feed>'), []);
 });
 
+test('entity validation ignores ampersands in XML comments and CDATA', () => {
+    const xml = `<feed>
+      <!-- Raw & and &unknown; with a CDATA opener <![CDATA[ -->
+      <entry><id>report</id><content><![CDATA[A & B <!--]]></content></entry>
+    </feed>`;
+    assert.equal(parseFeed(xml)[0].summary, 'A & B <!--');
+    assert.throws(() => parseFeed(xml.replace('</feed>', '<title>&unknown;</title></feed>')), /undefined entity reference/);
+});
+
 test('a cancellation report with a minimal body parses', () => {
     const xml = `<?xml version="1.0"?><Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
       <Control><Title>震源・震度に関する情報</Title><Status>通常</Status></Control>
