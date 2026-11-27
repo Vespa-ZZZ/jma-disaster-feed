@@ -29,7 +29,7 @@ function makeFeed(ids) {
     return `<feed xmlns="http://www.w3.org/2005/Atom"><title>Test feed</title>${entries.join('')}</feed>`;
 }
 
-async function runActor({ entries = [], reports = {}, input = {}, state = new Map(), feedError, chargeResults = [] } = {}) {
+async function runActor({ entries = [], reports = {}, input = {}, state = new Map(), feedError, chargeResults = [], configureActor } = {}) {
     const requests = [];
     const records = [];
     const values = new Map();
@@ -73,6 +73,7 @@ async function runActor({ entries = [], reports = {}, input = {}, state = new Ma
         error(message) { errors.push(message); },
     };
 
+    configureActor?.(actor, records);
     await run({ actor, fetch, log, sleep: async () => {} });
     return { requests, records, summary: values.get('RUN_SUMMARY'), lifecycle, warnings, errors, pushes };
 }
@@ -222,4 +223,28 @@ test('local paths are redacted from retry warnings, the error log and the actor 
     assert.deepEqual(result.warnings, [2, 4, 8].map((seconds) => `Request failed (${message}), retrying in ${seconds}s`));
     assert.deepEqual(result.errors, [message]);
     assert.deepEqual(result.lifecycle, ['init', 'fail', message]);
+});
+
+test('prechecks the dataset item budget and allows non-PPE output', async () => {
+    for (const [isPayPerEvent, budget] of [[true, 1], [true, 0], [false, 0]]) {
+        const configureActor = (actor, records) => {
+            actor.getChargingManager = () => ({
+                getPricingInfo: () => ({ isPayPerEvent }),
+                calculateMaxEventChargeCountWithinLimit(event) {
+                    assert.equal(event, 'apify-default-dataset-item');
+                    return budget - records.length;
+                },
+            });
+        };
+        const state = new Map();
+        const entries = ['saved', 'pending', 'waiting'];
+        const result = await runActor({ state, entries, input: { fetchDetails: false }, configureActor });
+        const expected = isPayPerEvent ? budget : entries.length;
+        assert.deepEqual(result.lifecycle, ['init', 'exit']);
+        assert.equal(result.pushes, expected);
+        assert.equal(result.summary.pushed, expected);
+        assert.equal(result.summary.stopReason, isPayPerEvent ? 'spendingLimit' : undefined);
+        assert.deepEqual(state.get(SEEN_KEY), entries.slice(0, expected));
+        assert.deepEqual(state.get(PENDING_KEY).map((entry) => entry.entryId), entries.slice(expected));
+    }
 });

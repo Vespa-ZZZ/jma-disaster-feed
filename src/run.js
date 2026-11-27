@@ -1,3 +1,4 @@
+import { pushDataWithinLimit } from './charging.js';
 import {
     FEEDS, SOURCE, INTENSITY_ORDER, feedUrl, parseFeed, parseReport, entryMatches, meetsMinIntensity, sanitize,
 } from './jma.js';
@@ -146,7 +147,7 @@ export async function run({ actor, fetch, log, sleep = (ms) => new Promise((reso
             delete record.failCount;
             delete record.permanentFails;
             if (meetsMinIntensity(record, minIntensity)) {
-                const result = await actor.pushData({ ...record, source: SOURCE });
+                const result = await pushDataWithinLimit(actor, { ...record, source: SOURCE });
                 chargeLimitReached = result?.eventChargeLimitReached === true;
                 if (chargeLimitReached) log.warning('Pay-per-event charge limit reached. Stopping dataset output.');
                 if (chargeLimitReached && result.chargedCount === 0) break;
@@ -179,6 +180,7 @@ export async function run({ actor, fetch, log, sleep = (ms) => new Promise((reso
             processed: candidates.length, pushed, failedReports: failed, detailHttpRequests: budget.used,
             unhandled: unhandled.length,
         };
+        if (chargeLimitReached) summary.stopReason = 'spendingLimit';
         await actor.setValue('RUN_SUMMARY', summary);
         if (pushed === 0 && onlyNew) log.info(`No new reports output (${savedPending} pending for the next run).`);
         else if (pushed === 0 && !chargeLimitReached) log.warning('No entries matched. Try a different feed, wider filters or longFeed = true.');
